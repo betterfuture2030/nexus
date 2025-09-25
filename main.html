@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus - The Strategy Game</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #343a40;
+        }
+        #gameArea {
+            display: flex;
+            margin-top: 20px;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 4px solid #495057;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+        
+        /* Checkered pattern coloring */
+        .light {
+            background-color: #f0d9b5;
+        }
+        .dark {
+             background-color: #b58863;
+        }
+
+        .piece {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.6);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .white {
+            background-color: #ffffff;
+            border: 1px solid #adb5bd;
+        }
+        .black {
+            background-color: #212529;
+        }
+        .selected {
+            box-shadow: 0 0 0 4px #ffc107; /* Yellow border for selected piece */
+            transform: scale(1.05);
+        }
+        .highlight {
+             /* Uses an inset shadow to indicate valid moves clearly */
+            box-shadow: inset 0 0 0 5px rgba(40, 167, 69, 0.8);
+            cursor: pointer;
+        }
+
+        #infoPanel {
+            margin-left: 30px;
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #ced4da;
+            width: 250px;
+            height: fit-content;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        #status {
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #007bff;
+        }
+        #phaseInfo {
+            font-size: 16px;
+            color: #495057;
+        }
+        #restartBtn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        #restartBtn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nexus</h1>
+    <div id="gameArea">
+        <div id="board"></div>
+        <div id="infoPanel">
+            <div id="status">Initializing...</div>
+            <div id="phaseInfo">
+                <strong>Phase:</strong> <span id="phaseDisplay">Placement</span><br><br>
+                <div id="placementCount">
+                    White Left: <span id="whitePieces">8</span><br>
+                    Black Left: <span id="blackPieces">8</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button id="restartBtn">Restart Game</button>
+
+    <script>
+        const BOARD_SIZE = 8;
+        const PIECES_PER_PLAYER = 8;
+        const PLAYER_WHITE = 1; // Human
+        const PLAYER_BLACK = 2; // AI
+
+        let board = [];
+        let currentPlayer = PLAYER_WHITE;
+        let phase = 'PLACEMENT'; // PLACEMENT or MOVEMENT or GAMEOVER
+        let whitePiecesToPlace = PIECES_PER_PLAYER;
+        let blackPiecesToPlace = PIECES_PER_PLAYER;
+        let selectedPiece = null;
+
+        const boardElement = document.getElementById('board');
+        const statusElement = document.getElementById('status');
+        const phaseDisplayElement = document.getElementById('phaseDisplay');
+        const whitePiecesElement = document.getElementById('whitePieces');
+        const blackPiecesElement = document.getElementById('blackPieces');
+        const placementCountElement = document.getElementById('placementCount');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // --- Initialization ---
+
+        function initGame() {
+            board = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(0));
+            // White starts placement
+            currentPlayer = PLAYER_WHITE; 
+            phase = 'PLACEMENT';
+            whitePiecesToPlace = PIECES_PER_PLAYER;
+            blackPiecesToPlace = PIECES_PER_PLAYER;
+            selectedPiece = null;
+            statusElement.style.color = "#007bff"; // Reset status color
+            createBoard();
+            updateStatus();
+        }
+
+        function createBoard() {
+            boardElement.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    // Determine color based on row and column parity
+                    if ((r + c) % 2 === 0) {
+                        cell.classList.add('light');
+                    } else {
+                        cell.classList.add('dark');
+                    }
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.addEventListener('click', () => handleCellClick(r, c));
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // --- Game Loop and State Management ---
+
+        function updateStatus() {
+            phaseDisplayElement.textContent = phase === 'PLACEMENT' ? 'Placement' : 'Movement';
+
+            if (phase === 'GAMEOVER') return;
+
+            if (phase === 'PLACEMENT') {
+                placementCountElement.style.display = 'block';
+                whitePiecesElement.textContent = whitePiecesToPlace;
+                blackPiecesElement.textContent = blackPiecesToPlace;
+                statusElement.textContent = `${currentPlayer === PLAYER_WHITE ? "Your turn (White)" : "AI's turn (Black)"} to place.`;
+            } else if (phase === 'MOVEMENT') {
+                placementCountElement.style.display = 'none';
+                statusElement.textContent = `${currentPlayer === PLAYER_WHITE ? "Your turn (White)" : "AI's turn (Black)"} to slide.`;
+            }
+
+            // Trigger AI move if it's the AI's turn
+            if (currentPlayer === PLAYER_BLACK) {
+                // Use a small delay for better flow
+                setTimeout(aiMove, 500); 
+            }
+        }
+
+        function switchPlayer() {
+            currentPlayer = currentPlayer === PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+
+            // Check for phase transition
+            if (phase === 'PLACEMENT' && whitePiecesToPlace === 0 && blackPiecesToPlace === 0) {
+                phase = 'MOVEMENT';
+                // Rule: Black moves first in Movement phase
+                currentPlayer = PLAYER_BLACK;
+                console.log("Placement phase complete. Movement phase begins. Black moves first.");
+            }
+            updateStatus();
+        }
+
+        // --- Event Handlers ---
+
+        function handleCellClick(r, c) {
+            // Block input if it's the AI's turn or the game is over
+            if (currentPlayer !== PLAYER_WHITE || phase === 'GAMEOVER') return;
+
+            if (phase === 'PLACEMENT') {
+                handlePlacement(r, c);
+            } else if (phase === 'MOVEMENT') {
+                handleMovement(r, c);
+            }
+        }
+
+        function handlePlacement(r, c) {
+            if (board[r][c] === 0 && whitePiecesToPlace > 0) {
+                board[r][c] = PLAYER_WHITE;
+                whitePiecesToPlace--;
+                renderBoard();
+                switchPlayer();
+            }
+        }
+
+        function handleMovement(r, c) {
+            const targetOwner = board[r][c];
+
+            if (selectedPiece) {
+                // Check if the clicked cell is a valid destination (highlighted)
+                const cell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+                if (cell.classList.contains('highlight')) {
+                    // Execute the move
+                    movePiece(selectedPiece.r, selectedPiece.c, r, c);
+                    selectedPiece = null;
+                    renderBoard();
+                    
+                    // Check for win condition
+                    if (checkWin(currentPlayer, board)) {
+                        endGame(currentPlayer);
+                    } else {
+                        switchPlayer();
+                    }
+                } else if (targetOwner === currentPlayer) {
+                    // Switch selection to a different piece
+                    selectedPiece = { r, c };
+                    renderBoard();
+                    highlightMoves(r, c);
+                } else {
+                    // Clicked an invalid spot, deselect
+                    selectedPiece = null;
+                    renderBoard();
+                }
+            } else if (targetOwner === currentPlayer) {
+                // Select a piece
+                selectedPiece = { r, c };
+                renderBoard();
+                highlightMoves(r, c);
+            }
+        }
+
+        // --- Game Logic ---
+
+        function getSlideDestinations(r, c) {
+            const destinations = [];
+            // Directions: N, NE, E, SE, S, SW, W, NW
+            const directions = [
+                { dr: -1, dc: 0 }, { dr: -1, dc: 1 }, { dr: 0, dc: 1 }, { dr: 1, dc: 1 }, 
+                { dr: 1, dc: 0 }, { dr: 1, dc: -1 }, { dr: 0, dc: -1 }, { dr: -1, dc: -1 }
+            ];
+
+            for (const dir of directions) {
+                let nr = r + dir.dr;
+                let nc = c + dir.dc;
+                let lastEmptyR = -1;
+                let lastEmptyC = -1;
+
+                while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+                    if (board[nr][nc] !== 0) {
+                        // Hit another piece, stop just before it
+                        if (lastEmptyR !== -1) {
+                            destinations.push({ r: lastEmptyR, c: lastEmptyC });
+                        }
+                        break;
+                    }
+                    // Keep track of the last empty cell visited
+                    lastEmptyR = nr;
+                    lastEmptyC = nc;
+                    nr += dir.dr;
+                    nc += dir.dc;
+                }
+
+                // If the loop finished (did not break) because it hit the edge of the board
+                if ((nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) && lastEmptyR !== -1) {
+                     destinations.push({ r: lastEmptyR, c: lastEmptyC });
+                }
+            }
+            return destinations;
+        }
+
+        function movePiece(startR, startC, endR, endC) {
+            const player = board[startR][startC];
+            board[startR][startC] = 0;
+            board[endR][endC] = player;
+        }
+
+        // Generalized win check function that operates on a given board state
+        function checkWin(player, currentBoard) {
+            const pieces = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (currentBoard[r][c] === player) {
+                        pieces.push({ r, c });
+                    }
+                }
+            }
+
+            // Must have all 8 pieces on the board to win
+            if (pieces.length !== PIECES_PER_PLAYER) {
+                return false;
+            }
+
+            // Use Breadth-First Search (BFS) to check connectivity
+            const queue = [pieces[0]];
+            const visited = new Set();
+            const startKey = `${pieces[0].r},${pieces[0].c}`;
+            visited.add(startKey);
+            let connectedCount = 0;
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+                connectedCount++;
+
+                // Orthogonal neighbors only
+                const neighbors = [
+                    { r: current.r - 1, c: current.c },
+                    { r: current.r + 1, c: current.c },
+                    { r: current.r, c: current.c - 1 },
+                    { r: current.r, c: current.c + 1 }
+                ];
+
+                for (const neighbor of neighbors) {
+                    // Check bounds
+                    if (neighbor.r >= 0 && neighbor.r < BOARD_SIZE &&
+                        neighbor.c >= 0 && neighbor.c < BOARD_SIZE &&
+                        currentBoard[neighbor.r][neighbor.c] === player) {
+
+                        const key = `${neighbor.r},${neighbor.c}`;
+                        if (!visited.has(key)) {
+                            visited.add(key);
+                            queue.push(neighbor);
+                        }
+                    }
+                }
+            }
+
+            return connectedCount === PIECES_PER_PLAYER;
+        }
+
+        function endGame(winner) {
+            phase = 'GAMEOVER';
+            const winnerName = winner === PLAYER_WHITE ? "White (You)" : "Black (AI)";
+            statusElement.textContent = `Nexus! ${winnerName} Wins!`;
+            statusElement.style.color = "#dc3545";
+        }
+
+        // --- Rendering ---
+
+        function renderBoard() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+                    cell.innerHTML = '';
+                    cell.classList.remove('highlight');
+
+                    const pieceType = board[r][c];
+                    if (pieceType !== 0) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece');
+                        if (pieceType === PLAYER_WHITE) {
+                            piece.classList.add('white');
+                        } else {
+                            piece.classList.add('black');
+                        }
+
+                        if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
+                            piece.classList.add('selected');
+                        }
+                        cell.appendChild(piece);
+                    }
+                }
+            }
+        }
+
+        function highlightMoves(r, c) {
+            const destinations = getSlideDestinations(r, c);
+            for (const dest of destinations) {
+                const cell = document.querySelector(`.cell[data-row="${dest.r}"][data-col="${dest.c}"]`);
+                cell.classList.add('highlight');
+            }
+        }
+
+        // --- AI Logic ---
+
+        function aiMove() {
+            if (phase === 'PLACEMENT') {
+                aiPlacePiece();
+            } else if (phase === 'MOVEMENT') {
+                aiMovePiece();
+            }
+        }
+
+        // Heuristic Evaluation Function
+        // Higher score is better. Focuses on maximizing the largest group and minimizing the bounding box.
+        function evaluateBoardState(currentBoard, player) {
+            const pieces = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (currentBoard[r][c] === player) {
+                        pieces.push({ r, c });
+                    }
+                }
+            }
+
+            if (pieces.length === 0) return 0;
+
+            // 1. Largest Connected Component (LCC)
+            let maxGroupSize = 0;
+            const visited = new Set();
+            
+            for (const startPiece of pieces) {
+                const startKey = `${startPiece.r},${startPiece.c}`;
+                if (!visited.has(startKey)) {
+                    let currentGroupSize = 0;
+                    const queue = [startPiece];
+                    visited.add(startKey);
+
+                    while(queue.length > 0) {
+                        const current = queue.shift();
+                        currentGroupSize++;
+
+                        const neighbors = [
+                            { r: current.r - 1, c: current.c }, { r: current.r + 1, c: current.c },
+                            { r: current.r, c: current.c - 1 }, { r: current.r, c: current.c + 1 }
+                        ];
+
+                         for (const neighbor of neighbors) {
+                            if (neighbor.r >= 0 && neighbor.r < BOARD_SIZE && neighbor.c >= 0 && neighbor.c < BOARD_SIZE &&
+                                currentBoard[neighbor.r][neighbor.c] === player) {
+                                const key = `${neighbor.r},${neighbor.c}`;
+                                if (!visited.has(key)) {
+                                    visited.add(key);
+                                    queue.push(neighbor);
+                                }
+                            }
+                        }
+                    }
+                    maxGroupSize = Math.max(maxGroupSize, currentGroupSize);
+                }
+            }
+
+            // 2. Bounding Box Area (Smaller is better)
+            let minR = Math.min(...pieces.map(p => p.r));
+            let maxR = Math.max(...pieces.map(p => p.r));
+            let minC = Math.min(...pieces.map(p => p.c));
+            let maxC = Math.max(...pieces.map(p => p.c));
+            // Area calculation
+            const boundingBoxArea = (maxR - minR + 1) * (maxC - minC + 1);
+
+            // Combine heuristics: LCC is significantly more important than area.
+            // Max LCC score = 800. Max Area penalty = 64.
+            const score = (maxGroupSize * 100) - boundingBoxArea;
+            return score;
+        }
+
+        function aiPlacePiece() {
+             // AI Placement Strategy: Use the heuristic evaluation to find the best spot.
+            const emptyCells = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === 0) {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+
+            if (emptyCells.length > 0 && blackPiecesToPlace > 0) {
+                
+                let bestCells = [];
+                let bestScore = -Infinity;
+
+                for(const cell of emptyCells) {
+                    // Simulate placement
+                    board[cell.r][cell.c] = PLAYER_BLACK;
+                    
+                    let score = evaluateBoardState(board, PLAYER_BLACK);
+                    
+                    // Add slight randomness to break ties and avoid deterministic patterns
+                    score += Math.random() * 5; 
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestCells = [cell];
+                    } else if (score === bestScore) {
+                        bestCells.push(cell);
+                    }
+                    
+                    // Undo simulation
+                    board[cell.r][cell.c] = 0;
+                }
+
+                const chosenCell = bestCells[Math.floor(Math.random() * bestCells.length)];
+                board[chosenCell.r][chosenCell.c] = PLAYER_BLACK;
+                blackPiecesToPlace--;
+                renderBoard();
+                switchPlayer();
+            }
+        }
+
+        function aiMovePiece() {
+            // AI Movement Strategy: 1-ply lookahead (Greedy search) using the heuristic evaluation.
+            const aiPieces = [];
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === PLAYER_BLACK) {
+                        aiPieces.push({ r, c });
+                    }
+                }
+            }
+
+            let bestMove = null;
+            let bestScore = -Infinity;
+
+            // Shuffle pieces to introduce randomness if scores are equal
+            for (let i = aiPieces.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [aiPieces[i], aiPieces[j]] = [aiPieces[j], aiPieces[i]];
+            }
+
+            // Iterate through all possible moves
+            for (const piece of aiPieces) {
+                const destinations = getSlideDestinations(piece.r, piece.c);
+                for (const dest of destinations) {
+                    
+                    // Create a copy of the board to simulate the move
+                    const tempBoard = board.map(row => [...row]);
+                    tempBoard[piece.r][piece.c] = 0;
+                    tempBoard[dest.r][dest.c] = PLAYER_BLACK;
+
+                    // Check for immediate win
+                    if (checkWin(PLAYER_BLACK, tempBoard)) {
+                        // Found a winning move, take it immediately
+                        movePiece(piece.r, piece.c, dest.r, dest.c);
+                        renderBoard();
+                        endGame(PLAYER_BLACK);
+                        return;
+                    }
+
+                    // Evaluate the resulting board state
+                    const score = evaluateBoardState(tempBoard, PLAYER_BLACK);
+
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = { startR: piece.r, startC: piece.c, endR: dest.r, endC: dest.c };
+                    }
+                }
+            }
+
+            if (bestMove) {
+                movePiece(bestMove.startR, bestMove.startC, bestMove.endR, bestMove.endC);
+                renderBoard();
+                // Safety check for win (though already checked in simulation)
+                 if (checkWin(PLAYER_BLACK, board)) {
+                    endGame(PLAYER_BLACK);
+                } else {
+                    switchPlayer();
+                }
+            } else {
+                // This should ideally not happen in Nexus unless the AI is completely trapped
+                console.error("AI could not find a move.");
+                switchPlayer();
+            }
+        }
+
+
+        // --- Start the game ---
+        restartBtn.addEventListener('click', initGame);
+        initGame();
+
+    </script>
+</body>
+</html>
