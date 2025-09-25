@@ -14,7 +14,7 @@ This repository contains a browser-based implementation of Nexus, allowing you t
 
 The game mechanics, rules, concept, and the name "Nexus" were invented by **@betterfuture2030**.
 
-**Copyright © 2025 [Your Name Here].**
+**Copyright © 2025 Peter Lowes.**
 
 The intellectual property of the game design is retained by the inventor. Acknowledgment of the original inventor is requested for any derivative works or implementations based on these mechanics.
 
