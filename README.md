@@ -74,28 +74,37 @@ Players take turns moving one piece using the **Slide** mechanic:
 (The White piece can move to any of the green highlighted squares.)
 ```
 
-### How to Play This Implementation
+## How to Play This Implementation
+
 This implementation allows you to play against a computer AI in your web browser.
-Features
-Rule Enforcement: The game enforces all placement and movement rules.
-Interactive UI: Simple click-to-select and click-to-move interface with highlights.
-AI Opponent: Includes an AI that uses a heuristic evaluation function (focusing on maximizing group size and minimizing the area the pieces occupy) to make strategic moves.
-Running the Game Locally
-Clone the repository:
+
+### Features
+
+#### Rule Enforcement: The game enforces all placement and movement rules.
+#### Interactive UI: Simple click-to-select and click-to-move interface with highlights.
+#### AI Opponent: Includes an AI that uses a heuristic evaluation function (focusing on maximizing group size and minimizing the area the pieces occupy) to make strategic moves.
+
+### Running the Game Locally
+
+#### Clone the repository:
+```rev
 git clone [https://github.com/](https://github.com/)[YOUR_GITHUB_USERNAME/YOUR_REPOSITORY_NAME].git
+```
 
-
-Navigate to the directory:
+#### Navigate to the directory:
+```rev
 cd [YOUR_REPOSITORY_NAME]
+```
 
+#### Open the game file: Double-click nexus_game.html to open it in your browser.
 
-Open the game file: Double-click nexus_game.html to open it in your browser.
-Interface Instructions
+### Interface Instructions
 You play as White. The AI plays as Black.
 Phase 1 (Placement): White goes first. Click an empty square to place your piece.
 Phase 2 (Movement): Black (AI) moves first. Click your piece to select it, then click a highlighted square to slide it.
 Strategic Depth
-Mastery of Nexus lies in:
+
+### Mastery of Nexus lies in:
 The Crucial Placement Phase: The initial setup defines the game. Spreading out controls movement lanes; placing close together allows for faster connection but easier blocking.
 Blocking and Isolation: Using your pieces as "walls" to block opponent slides and isolate their pieces is key.
 Visualization: Because pieces can move across the entire board in one turn, players must visualize the cascading effects of the slide mechanic.
