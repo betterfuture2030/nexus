@@ -70,11 +70,11 @@ Players take turns moving one piece using the **Slide** mechanic:
   <circle cx="15" cy="55" r="4" fill="black" stroke="white" stroke-width="0.5"/>
 
 </svg>
-```
-
 
 (The White piece can move to any of the green highlighted squares.)
-How to Play This Implementation
+```
+
+### How to Play This Implementation
 This implementation allows you to play against a computer AI in your web browser.
 Features
 Rule Enforcement: The game enforces all placement and movement rules.
