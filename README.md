@@ -12,7 +12,7 @@ This repository contains a browser-based implementation of Nexus, allowing you t
 
 ### Game Concept and Design (Copyright)
 
-The game mechanics, rules, concept, and the name "Nexus" were invented by **[Your Name Here]**.
+The game mechanics, rules, concept, and the name "Nexus" were invented by **@betterfuture2030**.
 
 **Copyright © 2025 [Your Name Here].**
 
