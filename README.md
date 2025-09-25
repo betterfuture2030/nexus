@@ -70,7 +70,8 @@ Players take turns moving one piece using the **Slide** mechanic:
   <circle cx="15" cy="55" r="4" fill="black" stroke="white" stroke-width="0.5"/>
 
 </svg>
-/svg
+```
+
 
 (The White piece can move to any of the green highlighted squares.)
 How to Play This Implementation
